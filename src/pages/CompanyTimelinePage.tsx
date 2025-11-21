@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CompanyDetails, MetricDataPoint, EventDocument, MetricTypeDefinition } from '../types';
 import { fetchCompanyDetails, fetchPriceHistory, fetchDocuments, fetchMetricTypes } from '../lib/dummyData';
@@ -6,8 +6,15 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { Button } from '../components/ui/button';
 import { Checkbox } from '../components/ui/checkbox';
 import { ArrowLeft, Pin, PinOff } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush, ReferenceLine, ComposedChart, Scatter } from 'recharts';
 import { toast } from 'sonner';
+
+interface ChartDataPoint {
+  date: Date;
+  dateNum: number;
+  label: string;
+  value: number;
+}
 
 export default function CompanyTimelinePage() {
   const { strategyCode, sedol } = useParams<{ strategyCode?: string; sedol: string }>();
@@ -24,6 +31,8 @@ export default function CompanyTimelinePage() {
   const [enabledEventTypes, setEnabledEventTypes] = useState<Set<string>>(
     new Set(['trade', 'earnings_call', 'broker_report', 'company_filing'])
   );
+  const [xDomain, setXDomain] = useState<[number, number] | null>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const companyPinned = isPinned(sedol || '');
 
@@ -47,6 +56,12 @@ export default function CompanyTimelinePage() {
       setMetricData(priceData);
       setDocuments(docs);
       setMetricTypes(types);
+      
+      if (priceData.length > 0) {
+        const minDate = Math.min(...priceData.map(d => d.date.getTime()));
+        const maxDate = Math.max(...priceData.map(d => d.date.getTime()));
+        setXDomain([minDate, maxDate]);
+      }
     } catch (err) {
       console.error('Failed to load company data', err);
     } finally {
@@ -75,13 +90,72 @@ export default function CompanyTimelinePage() {
 
   const filteredDocuments = documents.filter(doc => enabledEventTypes.has(doc.type));
 
-  const chartData = metricData.map(d => ({
-    date: d.date.toLocaleDateString(),
+  const chartData: ChartDataPoint[] = metricData.map(d => ({
+    date: d.date,
+    dateNum: d.date.getTime(),
+    label: d.date.toLocaleDateString(),
     value: selectedMetric === 'price' ? d.price :
            selectedMetric === 'mcap' ? d.mcap :
            selectedMetric === 'pe' ? d.pe :
-           d.revenue
+           d.revenue || 0
   }));
+
+  const markerPoints = filteredDocuments.map(doc => ({
+    x: doc.date.getTime(),
+    y: 0,
+    type: doc.type,
+    id: doc.id,
+    title: doc.title
+  }));
+
+  const handleBrushChange = (range: { startIndex?: number; endIndex?: number }) => {
+    if (range.startIndex !== undefined && range.endIndex !== undefined && chartData.length > 0) {
+      const newMin = chartData[range.startIndex].dateNum;
+      const newMax = chartData[range.endIndex].dateNum;
+      setXDomain([newMin, newMax]);
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!xDomain || chartData.length === 0) return;
+    
+    e.preventDefault();
+    const [currentMin, currentMax] = xDomain;
+    const currentWidth = currentMax - currentMin;
+    const center = (currentMin + currentMax) / 2;
+    
+    const zoomFactor = e.deltaY > 0 ? 1.2 : 0.8;
+    const newWidth = currentWidth * zoomFactor;
+    
+    const dataMin = Math.min(...chartData.map(d => d.dateNum));
+    const dataMax = Math.max(...chartData.map(d => d.dateNum));
+    
+    let newMin = center - newWidth / 2;
+    let newMax = center + newWidth / 2;
+    
+    if (newMin < dataMin) {
+      newMin = dataMin;
+      newMax = Math.min(dataMax, newMin + newWidth);
+    }
+    if (newMax > dataMax) {
+      newMax = dataMax;
+      newMin = Math.max(dataMin, newMax - newWidth);
+    }
+    
+    setXDomain([newMin, newMax]);
+  };
+
+  const getEventColor = (type: string) => {
+    const colors: Record<string, string> = {
+      trade: '#F97316',
+      earnings_call: '#EC4899',
+      broker_report: '#06B6D4',
+      company_filing: '#EAB308',
+      internal_research: '#3B82F6',
+      ai_content: '#A855F7'
+    };
+    return colors[type] || '#6B7280';
+  };
 
   if (loading) {
     return (
@@ -131,32 +205,117 @@ export default function CompanyTimelinePage() {
             <select
               value={selectedMetric}
               onChange={(e) => setSelectedMetric(e.target.value)}
-              className="border rounded px-3 py-2"
+              className="border rounded-md px-3 py-2 bg-background text-sm font-medium"
             >
               {metricTypes.map(type => (
                 <option key={type.id} value={type.id}>{type.name}</option>
               ))}
             </select>
+            {xDomain && (
+              <span className="text-sm text-muted-foreground">
+                {new Date(xDomain[0]).toLocaleDateString()} - {new Date(xDomain[1]).toLocaleDateString()}
+              </span>
+            )}
           </div>
 
-          <div className="border rounded-lg p-4 bg-card">
+          <div 
+            ref={chartContainerRef}
+            onWheel={handleWheel}
+            className="border rounded-lg p-6 bg-card shadow-sm"
+          >
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#8884d8" />
+              <LineChart data={chartData} syncId="timeline">
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis 
+                  type="number"
+                  dataKey="dateNum" 
+                  domain={xDomain || ['auto', 'auto']}
+                  tickFormatter={(ts) => new Date(ts).toLocaleDateString()}
+                  stroke="#6B7280"
+                />
+                <YAxis stroke="#6B7280" />
+                <Tooltip 
+                  labelFormatter={(ts) => new Date(ts as number).toLocaleDateString()}
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#6366F1" 
+                  strokeWidth={2}
+                  dot={false}
+                />
+                {filteredDocuments.map(doc => (
+                  <ReferenceLine 
+                    key={doc.id}
+                    x={doc.date.getTime()}
+                    stroke={getEventColor(doc.type)}
+                    strokeDasharray="3 3"
+                    strokeOpacity={0.5}
+                  />
+                ))}
+                <Brush 
+                  dataKey="dateNum"
+                  height={30}
+                  stroke="#6366F1"
+                  fill="#F3F4F6"
+                  onChange={handleBrushChange}
+                  tickFormatter={(ts) => new Date(ts).toLocaleDateString()}
+                />
               </LineChart>
             </ResponsiveContainer>
+
+            <div className="mt-2">
+              <ResponsiveContainer width="100%" height={60}>
+                <ComposedChart data={markerPoints} syncId="timeline">
+                  <XAxis 
+                    type="number"
+                    dataKey="x"
+                    domain={xDomain || ['auto', 'auto']}
+                    hide
+                  />
+                  <YAxis type="number" domain={[0, 1]} hide />
+                  <Scatter 
+                    data={markerPoints}
+                    shape={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      const color = getEventColor(payload.type);
+                      return (
+                        <g>
+                          <circle 
+                            cx={cx} 
+                            cy={cy} 
+                            r={6} 
+                            fill={color}
+                            stroke="#fff"
+                            strokeWidth={2}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => {
+                              const doc = documents.find(d => d.id === payload.id);
+                              if (doc) {
+                                toast.info(`Document: ${doc.title}`);
+                              }
+                            }}
+                          />
+                          <title>{payload.title}</title>
+                        </g>
+                      );
+                    }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold mb-2">Event Filters</h3>
-          <div className="flex flex-wrap gap-4">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">Event Filters</h3>
+          <div className="flex flex-wrap gap-3">
             {['trade', 'earnings_call', 'broker_report', 'company_filing', 'internal_research', 'ai_content'].map(type => (
-              <label key={type} className="flex items-center gap-2">
+              <label 
+                key={type} 
+                className="flex items-center gap-2 px-3 py-2 rounded-md border bg-card hover:bg-accent cursor-pointer transition-colors"
+              >
                 <Checkbox
                   checked={enabledEventTypes.has(type)}
                   onCheckedChange={(checked) => {
@@ -169,7 +328,12 @@ export default function CompanyTimelinePage() {
                     setEnabledEventTypes(newTypes);
                   }}
                 />
-                <span className="text-sm capitalize">{type.replace('_', ' ')}</span>
+                <span 
+                  className="text-sm font-medium capitalize"
+                  style={{ color: getEventColor(type) }}
+                >
+                  {type.replace('_', ' ')}
+                </span>
               </label>
             ))}
           </div>
