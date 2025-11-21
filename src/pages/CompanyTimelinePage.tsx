@@ -94,10 +94,10 @@ export default function CompanyTimelinePage() {
     date: d.date,
     dateNum: d.date.getTime(),
     label: d.date.toLocaleDateString(),
-    value: selectedMetric === 'price' ? d.price :
+    value: (selectedMetric === 'price' ? d.price :
            selectedMetric === 'mcap' ? d.mcap :
            selectedMetric === 'pe' ? d.pe :
-           d.revenue || 0
+           d.revenue) || 0
   }));
 
   const markerPoints = filteredDocuments.map(doc => ({
