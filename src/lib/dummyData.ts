@@ -177,6 +177,60 @@ export const mockDocuments: Record<string, EventDocument[]> = {
   '0263494': [
     {
       id: 'doc1',
+      date: new Date('2024-11-25'),
+      type: 'earnings_call',
+      title: 'Q4 2024 Earnings Call',
+      description: 'Quarterly earnings call transcript',
+      author: 'Apple Inc',
+      content: 'Q4 2024 earnings call transcript content...'
+    },
+    {
+      id: 'doc2',
+      date: new Date('2024-11-20'),
+      type: 'trade',
+      title: 'Buy 5,000 shares',
+      description: 'Portfolio trade execution',
+      author: 'Portfolio Manager',
+      content: 'Trade execution details...'
+    },
+    {
+      id: 'doc3',
+      date: new Date('2024-11-15'),
+      type: 'ai_content',
+      title: 'AI Market Sentiment Analysis',
+      description: 'AI-generated sentiment analysis',
+      author: 'AI Research System',
+      content: 'AI sentiment analysis content...'
+    },
+    {
+      id: 'doc4',
+      date: new Date('2024-11-10'),
+      type: 'broker_report',
+      title: 'Apple: Holiday Season Outlook',
+      description: 'Analyst report on holiday sales',
+      author: 'Morgan Stanley',
+      content: 'Analyst report content...'
+    },
+    {
+      id: 'doc5',
+      date: new Date('2024-11-05'),
+      type: 'internal_research',
+      title: 'Apple Services Growth Analysis',
+      description: 'Internal research on services segment',
+      author: 'Research Team',
+      content: 'Internal research content...'
+    },
+    {
+      id: 'doc6',
+      date: new Date('2024-10-28'),
+      type: 'company_filing',
+      title: '10-K Annual Report',
+      description: 'Annual SEC filing',
+      author: 'Apple Inc',
+      content: '10-K filing content...'
+    },
+    {
+      id: 'doc7',
       date: new Date('2024-10-15'),
       type: 'earnings_call',
       title: 'Q3 2024 Earnings Call',
@@ -185,7 +239,34 @@ export const mockDocuments: Record<string, EventDocument[]> = {
       content: 'Q3 2024 earnings call transcript content...'
     },
     {
-      id: 'doc2',
+      id: 'doc8',
+      date: new Date('2024-10-10'),
+      type: 'trade',
+      title: 'Sell 2,000 shares',
+      description: 'Portfolio rebalancing trade',
+      author: 'Portfolio Manager',
+      content: 'Trade execution details...'
+    },
+    {
+      id: 'doc9',
+      date: new Date('2024-10-05'),
+      type: 'ai_content',
+      title: 'AI Product Launch Impact Analysis',
+      description: 'AI analysis of new product launches',
+      author: 'AI Research System',
+      content: 'AI analysis content...'
+    },
+    {
+      id: 'doc10',
+      date: new Date('2024-09-25'),
+      type: 'broker_report',
+      title: 'Apple: iPhone 16 Pre-orders Strong',
+      description: 'Analyst report on iPhone 16 demand',
+      author: 'JP Morgan',
+      content: 'Analyst report content...'
+    },
+    {
+      id: 'doc11',
       date: new Date('2024-09-20'),
       type: 'broker_report',
       title: 'Apple: Strong iPhone 15 Demand',
@@ -194,13 +275,175 @@ export const mockDocuments: Record<string, EventDocument[]> = {
       content: 'Analyst report content...'
     },
     {
-      id: 'doc3',
+      id: 'doc12',
+      date: new Date('2024-09-15'),
+      type: 'internal_research',
+      title: 'Apple Vision Pro Market Analysis',
+      description: 'Internal research on Vision Pro adoption',
+      author: 'Research Team',
+      content: 'Internal research content...'
+    },
+    {
+      id: 'doc13',
+      date: new Date('2024-09-05'),
+      type: 'trade',
+      title: 'Buy 3,500 shares',
+      description: 'Portfolio trade execution',
+      author: 'Portfolio Manager',
+      content: 'Trade execution details...'
+    },
+    {
+      id: 'doc14',
+      date: new Date('2024-08-28'),
+      type: 'ai_content',
+      title: 'AI Competitive Landscape Analysis',
+      description: 'AI-generated competitive analysis',
+      author: 'AI Research System',
+      content: 'AI competitive analysis content...'
+    },
+    {
+      id: 'doc15',
+      date: new Date('2024-08-20'),
+      type: 'company_filing',
+      title: '10-Q Q3 Filing',
+      description: 'Quarterly SEC filing',
+      author: 'Apple Inc',
+      content: '10-Q filing content...'
+    },
+    {
+      id: 'doc16',
       date: new Date('2024-08-10'),
       type: 'company_filing',
       title: '10-Q Filing',
       description: 'Quarterly SEC filing',
       author: 'Apple Inc',
       content: '10-Q filing content...'
+    },
+    {
+      id: 'doc17',
+      date: new Date('2024-08-05'),
+      type: 'broker_report',
+      title: 'Apple: Mac Sales Recovery',
+      description: 'Analyst report on Mac segment',
+      author: 'Barclays',
+      content: 'Analyst report content...'
+    },
+    {
+      id: 'doc18',
+      date: new Date('2024-07-25'),
+      type: 'earnings_call',
+      title: 'Q2 2024 Earnings Call',
+      description: 'Quarterly earnings call transcript',
+      author: 'Apple Inc',
+      content: 'Q2 2024 earnings call transcript content...'
+    },
+    {
+      id: 'doc19',
+      date: new Date('2024-07-20'),
+      type: 'trade',
+      title: 'Buy 4,000 shares',
+      description: 'Portfolio trade execution',
+      author: 'Portfolio Manager',
+      content: 'Trade execution details...'
+    },
+    {
+      id: 'doc20',
+      date: new Date('2024-07-15'),
+      type: 'ai_content',
+      title: 'AI Supply Chain Risk Assessment',
+      description: 'AI analysis of supply chain risks',
+      author: 'AI Research System',
+      content: 'AI risk assessment content...'
+    },
+    {
+      id: 'doc21',
+      date: new Date('2024-07-10'),
+      type: 'internal_research',
+      title: 'Apple Wearables Growth Potential',
+      description: 'Internal research on wearables segment',
+      author: 'Research Team',
+      content: 'Internal research content...'
+    },
+    {
+      id: 'doc22',
+      date: new Date('2024-06-28'),
+      type: 'broker_report',
+      title: 'Apple: WWDC Highlights',
+      description: 'Analyst report on WWDC announcements',
+      author: 'UBS',
+      content: 'Analyst report content...'
+    },
+    {
+      id: 'doc23',
+      date: new Date('2024-06-20'),
+      type: 'company_filing',
+      title: '8-K Material Event',
+      description: 'Material event disclosure',
+      author: 'Apple Inc',
+      content: '8-K filing content...'
+    },
+    {
+      id: 'doc24',
+      date: new Date('2024-06-15'),
+      type: 'trade',
+      title: 'Sell 1,500 shares',
+      description: 'Portfolio rebalancing trade',
+      author: 'Portfolio Manager',
+      content: 'Trade execution details...'
+    },
+    {
+      id: 'doc25',
+      date: new Date('2024-06-10'),
+      type: 'ai_content',
+      title: 'AI Earnings Forecast Model',
+      description: 'AI-generated earnings forecast',
+      author: 'AI Research System',
+      content: 'AI forecast content...'
+    },
+    {
+      id: 'doc26',
+      date: new Date('2024-06-05'),
+      type: 'internal_research',
+      title: 'Apple China Market Deep Dive',
+      description: 'Internal research on China operations',
+      author: 'Research Team',
+      content: 'Internal research content...'
+    },
+    {
+      id: 'doc27',
+      date: new Date('2024-05-25'),
+      type: 'broker_report',
+      title: 'Apple: iPad Refresh Cycle',
+      description: 'Analyst report on iPad sales',
+      author: 'Citi',
+      content: 'Analyst report content...'
+    },
+    {
+      id: 'doc28',
+      date: new Date('2024-05-15'),
+      type: 'earnings_call',
+      title: 'Q1 2024 Earnings Call',
+      description: 'Quarterly earnings call transcript',
+      author: 'Apple Inc',
+      content: 'Q1 2024 earnings call transcript content...'
+    },
+    {
+      id: 'doc29',
+      date: new Date('2024-05-10'),
+      type: 'trade',
+      title: 'Buy 6,000 shares',
+      description: 'Portfolio trade execution',
+      author: 'Portfolio Manager',
+      content: 'Trade execution details...'
+    },
+    {
+      id: 'doc30',
+      date: new Date('2024-05-05'),
+      type: 'ai_content',
+      title: 'AI Market Share Trend Analysis',
+      description: 'AI analysis of market share trends',
+      author: 'AI Research System',
+      content: 'AI trend analysis content...'
     }
   ]
 };

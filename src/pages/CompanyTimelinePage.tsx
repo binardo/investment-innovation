@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CompanyDetails, MetricDataPoint, EventDocument, MetricTypeDefinition } from '../types';
 import { fetchCompanyDetails, fetchPriceHistory, fetchDocuments, fetchMetricTypes } from '../lib/dummyData';
@@ -6,7 +6,7 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { Button } from '../components/ui/button';
 import { Checkbox } from '../components/ui/checkbox';
 import { ArrowLeft, Pin, PinOff } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush, ReferenceLine, ComposedChart, Scatter } from 'recharts';
+import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush, ReferenceLine, Scatter } from 'recharts';
 import { toast } from 'sonner';
 
 interface ChartDataPoint {
@@ -32,6 +32,8 @@ export default function CompanyTimelinePage() {
     new Set(['trade', 'earnings_call', 'broker_report', 'company_filing'])
   );
   const [xDomain, setXDomain] = useState<[number, number] | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; domain: [number, number] } | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const companyPinned = isPinned(sedol || '');
@@ -88,36 +90,84 @@ export default function CompanyTimelinePage() {
     }
   };
 
-  const filteredDocuments = documents.filter(doc => enabledEventTypes.has(doc.type));
+  const getEventColor = (type: string) => {
+    const colors: Record<string, string> = {
+      trade: '#F97316',
+      earnings_call: '#EC4899',
+      broker_report: '#06B6D4',
+      company_filing: '#EAB308',
+      internal_research: '#3B82F6',
+      ai_content: '#A855F7'
+    };
+    return colors[type] || '#6B7280';
+  };
 
-  const chartData: ChartDataPoint[] = metricData.map(d => ({
-    date: d.date,
-    dateNum: d.date.getTime(),
-    label: d.date.toLocaleDateString(),
-    value: (selectedMetric === 'price' ? d.price :
-           selectedMetric === 'mcap' ? d.mcap :
-           selectedMetric === 'pe' ? d.pe :
-           d.revenue) || 0
-  }));
+  const getEventLevel = (type: string): number => {
+    const levels: Record<string, number> = {
+      trade: 1,
+      earnings_call: 2,
+      broker_report: 3,
+      company_filing: 4,
+      internal_research: 5,
+      ai_content: 6
+    };
+    return levels[type] || 3;
+  };
 
-  const markerPoints = filteredDocuments.map(doc => ({
-    x: doc.date.getTime(),
-    y: 0,
-    type: doc.type,
-    id: doc.id,
-    title: doc.title
-  }));
+  const fullChartData: ChartDataPoint[] = useMemo(() => 
+    metricData.map(d => ({
+      date: d.date,
+      dateNum: d.date.getTime(),
+      label: d.date.toLocaleDateString(),
+      value: (selectedMetric === 'price' ? d.price :
+             selectedMetric === 'mcap' ? d.mcap :
+             selectedMetric === 'pe' ? d.pe :
+             d.revenue) || 0
+    })),
+    [metricData, selectedMetric]
+  );
+
+  const visibleData = useMemo(() => {
+    if (!xDomain || fullChartData.length === 0) return fullChartData;
+    const [min, max] = xDomain;
+    return fullChartData.filter(d => d.dateNum >= min && d.dateNum <= max);
+  }, [fullChartData, xDomain]);
+
+  const filteredDocuments = useMemo(() => 
+    documents.filter(doc => enabledEventTypes.has(doc.type)),
+    [documents, enabledEventTypes]
+  );
+
+  const visibleDocs = useMemo(() => {
+    if (!xDomain) return filteredDocuments;
+    const [min, max] = xDomain;
+    return filteredDocuments.filter(doc => {
+      const docTime = doc.date.getTime();
+      return docTime >= min && docTime <= max;
+    });
+  }, [filteredDocuments, xDomain]);
+
+  const markerPoints = useMemo(() => 
+    visibleDocs.map(doc => ({
+      x: doc.date.getTime(),
+      y: getEventLevel(doc.type),
+      type: doc.type,
+      id: doc.id,
+      title: doc.title
+    })),
+    [visibleDocs]
+  );
 
   const handleBrushChange = (range: { startIndex?: number; endIndex?: number }) => {
-    if (range.startIndex !== undefined && range.endIndex !== undefined && chartData.length > 0) {
-      const newMin = chartData[range.startIndex].dateNum;
-      const newMax = chartData[range.endIndex].dateNum;
+    if (range.startIndex !== undefined && range.endIndex !== undefined && fullChartData.length > 0) {
+      const newMin = fullChartData[range.startIndex].dateNum;
+      const newMax = fullChartData[range.endIndex].dateNum;
       setXDomain([newMin, newMax]);
     }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (!xDomain || chartData.length === 0) return;
+    if (!xDomain || fullChartData.length === 0) return;
     
     e.preventDefault();
     const [currentMin, currentMax] = xDomain;
@@ -127,8 +177,8 @@ export default function CompanyTimelinePage() {
     const zoomFactor = e.deltaY > 0 ? 1.2 : 0.8;
     const newWidth = currentWidth * zoomFactor;
     
-    const dataMin = Math.min(...chartData.map(d => d.dateNum));
-    const dataMax = Math.max(...chartData.map(d => d.dateNum));
+    const dataMin = Math.min(...fullChartData.map(d => d.dateNum));
+    const dataMax = Math.max(...fullChartData.map(d => d.dateNum));
     
     let newMin = center - newWidth / 2;
     let newMax = center + newWidth / 2;
@@ -145,16 +195,42 @@ export default function CompanyTimelinePage() {
     setXDomain([newMin, newMax]);
   };
 
-  const getEventColor = (type: string) => {
-    const colors: Record<string, string> = {
-      trade: '#F97316',
-      earnings_call: '#EC4899',
-      broker_report: '#06B6D4',
-      company_filing: '#EAB308',
-      internal_research: '#3B82F6',
-      ai_content: '#A855F7'
-    };
-    return colors[type] || '#6B7280';
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!xDomain) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, domain: xDomain });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !dragStart || !chartContainerRef.current) return;
+    
+    const containerWidth = chartContainerRef.current.clientWidth - 100;
+    const deltaPx = e.clientX - dragStart.x;
+    const [startMin, startMax] = dragStart.domain;
+    const domainWidth = startMax - startMin;
+    const timeDelta = (deltaPx / containerWidth) * domainWidth;
+    
+    const dataMin = Math.min(...fullChartData.map(d => d.dateNum));
+    const dataMax = Math.max(...fullChartData.map(d => d.dateNum));
+    
+    let newMin = startMin - timeDelta;
+    let newMax = startMax - timeDelta;
+    
+    if (newMin < dataMin) {
+      newMin = dataMin;
+      newMax = dataMin + domainWidth;
+    }
+    if (newMax > dataMax) {
+      newMax = dataMax;
+      newMin = dataMax - domainWidth;
+    }
+    
+    setXDomain([newMin, newMax]);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setDragStart(null);
   };
 
   if (loading) {
@@ -221,10 +297,21 @@ export default function CompanyTimelinePage() {
           <div 
             ref={chartContainerRef}
             onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
             className="border rounded-lg p-6 bg-card shadow-sm"
+            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData} syncId="timeline">
+              <ComposedChart data={visibleData} syncId="timeline">
+                <defs>
+                  <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366F1" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#6366F1" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis 
                   type="number"
@@ -238,6 +325,12 @@ export default function CompanyTimelinePage() {
                   labelFormatter={(ts) => new Date(ts as number).toLocaleDateString()}
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
                 />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="none"
+                  fill="url(#priceGradient)"
+                />
                 <Line 
                   type="monotone" 
                   dataKey="value" 
@@ -245,7 +338,7 @@ export default function CompanyTimelinePage() {
                   strokeWidth={2}
                   dot={false}
                 />
-                {filteredDocuments.map(doc => (
+                {visibleDocs.map(doc => (
                   <ReferenceLine 
                     key={doc.id}
                     x={doc.date.getTime()}
@@ -255,6 +348,7 @@ export default function CompanyTimelinePage() {
                   />
                 ))}
                 <Brush 
+                  data={fullChartData}
                   dataKey="dateNum"
                   height={30}
                   stroke="#6366F1"
@@ -262,19 +356,19 @@ export default function CompanyTimelinePage() {
                   onChange={handleBrushChange}
                   tickFormatter={(ts) => new Date(ts).toLocaleDateString()}
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
 
             <div className="mt-2">
-              <ResponsiveContainer width="100%" height={60}>
-                <ComposedChart data={markerPoints} syncId="timeline">
+              <ResponsiveContainer width="100%" height={80}>
+                <ComposedChart data={markerPoints} syncId="timeline" margin={{ top: 10, bottom: 10 }}>
                   <XAxis 
                     type="number"
                     dataKey="x"
                     domain={xDomain || ['auto', 'auto']}
                     hide
                   />
-                  <YAxis type="number" domain={[0, 1]} hide />
+                  <YAxis type="number" domain={[0, 7]} hide />
                   <Scatter 
                     data={markerPoints}
                     shape={(props: any) => {
@@ -311,31 +405,42 @@ export default function CompanyTimelinePage() {
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-3">Event Filters</h3>
           <div className="flex flex-wrap gap-3">
-            {['trade', 'earnings_call', 'broker_report', 'company_filing', 'internal_research', 'ai_content'].map(type => (
-              <label 
-                key={type} 
-                className="flex items-center gap-2 px-3 py-2 rounded-md border bg-card hover:bg-accent cursor-pointer transition-colors"
-              >
-                <Checkbox
-                  checked={enabledEventTypes.has(type)}
-                  onCheckedChange={(checked) => {
+            {['trade', 'earnings_call', 'broker_report', 'company_filing', 'internal_research', 'ai_content'].map(type => {
+              const isEnabled = enabledEventTypes.has(type);
+              const color = getEventColor(type);
+              return (
+                <button
+                  key={type}
+                  onClick={() => {
                     const newTypes = new Set(enabledEventTypes);
-                    if (checked) {
-                      newTypes.add(type);
-                    } else {
+                    if (isEnabled) {
                       newTypes.delete(type);
+                    } else {
+                      newTypes.add(type);
                     }
                     setEnabledEventTypes(newTypes);
                   }}
-                />
-                <span 
-                  className="text-sm font-medium capitalize"
-                  style={{ color: getEventColor(type) }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 ${
+                    isEnabled
+                      ? 'shadow-sm'
+                      : 'bg-background hover:bg-accent border-border'
+                  }`}
+                  style={
+                    isEnabled
+                      ? {
+                          backgroundColor: `${color}15`,
+                          borderColor: color,
+                          color: color
+                        }
+                      : {}
+                  }
+                  role="checkbox"
+                  aria-checked={isEnabled}
                 >
                   {type.replace('_', ' ')}
-                </span>
-              </label>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
 
