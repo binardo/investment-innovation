@@ -277,21 +277,63 @@ export default function CompanyTimelinePage() {
         </div>
 
         <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <select
-              value={selectedMetric}
-              onChange={(e) => setSelectedMetric(e.target.value)}
-              className="border rounded-md px-3 py-2 bg-background text-sm font-medium"
-            >
-              {metricTypes.map(type => (
-                <option key={type.id} value={type.id}>{type.name}</option>
-              ))}
-            </select>
-            {xDomain && (
-              <span className="text-sm text-muted-foreground">
-                {new Date(xDomain[0]).toLocaleDateString()} - {new Date(xDomain[1]).toLocaleDateString()}
-              </span>
-            )}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <select
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value)}
+                className="border rounded-md px-3 py-2 bg-background text-sm font-medium"
+              >
+                {metricTypes.map(type => (
+                  <option key={type.id} value={type.id}>{type.name}</option>
+                ))}
+              </select>
+              {xDomain && (
+                <span className="text-sm text-muted-foreground">
+                  {new Date(xDomain[0]).toLocaleDateString()} - {new Date(xDomain[1]).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (fullChartData.length === 0) return;
+                  const maxDate = Math.max(...fullChartData.map(d => d.dateNum));
+                  const oneYearAgo = maxDate - (365 * 24 * 60 * 60 * 1000);
+                  const minDate = Math.min(...fullChartData.map(d => d.dateNum));
+                  setXDomain([Math.max(oneYearAgo, minDate), maxDate]);
+                }}
+              >
+                1Y
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (fullChartData.length === 0) return;
+                  const maxDate = Math.max(...fullChartData.map(d => d.dateNum));
+                  const fiveYearsAgo = maxDate - (5 * 365 * 24 * 60 * 60 * 1000);
+                  const minDate = Math.min(...fullChartData.map(d => d.dateNum));
+                  setXDomain([Math.max(fiveYearsAgo, minDate), maxDate]);
+                }}
+              >
+                5Y
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (fullChartData.length === 0) return;
+                  const minDate = Math.min(...fullChartData.map(d => d.dateNum));
+                  const maxDate = Math.max(...fullChartData.map(d => d.dateNum));
+                  setXDomain([minDate, maxDate]);
+                }}
+              >
+                ALL
+              </Button>
+            </div>
           </div>
 
           <div 
@@ -359,27 +401,29 @@ export default function CompanyTimelinePage() {
               </ComposedChart>
             </ResponsiveContainer>
 
-            <div className="mt-2">
-              <ResponsiveContainer width="100%" height={80}>
-                <ComposedChart data={markerPoints} syncId="timeline" margin={{ top: 10, bottom: 10 }}>
+            <div className="mt-4 border-t pt-4">
+              <div className="text-sm font-medium text-muted-foreground mb-2">Event Timeline</div>
+              <ResponsiveContainer width="100%" height={100}>
+                <ComposedChart data={markerPoints} syncId="timeline" margin={{ top: 5, bottom: 5, left: 50, right: 50 }}>
                   <XAxis 
                     type="number"
                     dataKey="x"
                     domain={xDomain || ['auto', 'auto']}
                     hide
                   />
-                  <YAxis type="number" domain={[0, 7]} hide />
+                  <YAxis type="number" domain={[0.5, 6.5]} hide />
                   <Scatter 
                     data={markerPoints}
-                    shape={(props: any) => {
-                      const { cx, cy, payload } = props;
+                    shape={(props: unknown) => {
+                      const { cx, cy, payload } = props as { cx?: number; cy?: number; payload?: { type: string; id: string; title: string } };
+                      if (!cx || !cy || !payload) return <></>;
                       const color = getEventColor(payload.type);
                       return (
                         <g>
                           <circle 
                             cx={cx} 
                             cy={cy} 
-                            r={6} 
+                            r={8} 
                             fill={color}
                             stroke="#fff"
                             strokeWidth={2}
