@@ -5,8 +5,8 @@ import { fetchCompanyDetails, fetchPriceHistory, fetchDocuments, fetchMetricType
 import { useNavigation } from '../contexts/NavigationContext';
 import { Button } from '../components/ui/button';
 import { Checkbox } from '../components/ui/checkbox';
-import { ArrowLeft, Pin, PinOff } from 'lucide-react';
-import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush, ReferenceLine, Scatter } from 'recharts';
+import { ArrowLeft, Pin, PinOff, DollarSign, FileText, Mic, BarChart2, FlaskConical, Sparkles } from 'lucide-react';
+import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Scatter } from 'recharts';
 import { toast } from 'sonner';
 
 interface ChartDataPoint {
@@ -60,9 +60,17 @@ export default function CompanyTimelinePage() {
       setMetricTypes(types);
       
       if (priceData.length > 0) {
-        const minDate = Math.min(...priceData.map(d => d.date.getTime()));
-        const maxDate = Math.max(...priceData.map(d => d.date.getTime()));
-        setXDomain([minDate, maxDate]);
+        const priceMin = Math.min(...priceData.map(d => d.date.getTime()));
+        const priceMax = Math.max(...priceData.map(d => d.date.getTime()));
+        
+        const docTimes = docs.map(d => d.date.getTime());
+        const docMin = docTimes.length ? Math.min(...docTimes) : priceMin;
+        const docMax = docTimes.length ? Math.max(...docTimes) : priceMax;
+        
+        const overallMin = Math.min(priceMin, docMin);
+        const overallMax = Math.max(priceMax, docMax);
+        
+        setXDomain([overallMin, overallMax]);
       }
     } catch (err) {
       console.error('Failed to load company data', err);
@@ -92,12 +100,12 @@ export default function CompanyTimelinePage() {
 
   const getEventColor = (type: string) => {
     const colors: Record<string, string> = {
-      trade: '#F97316',
-      earnings_call: '#EC4899',
-      broker_report: '#06B6D4',
-      company_filing: '#EAB308',
-      internal_research: '#3B82F6',
-      ai_content: '#A855F7'
+      trade: '#FDBA74',          // pastel orange (orange-300)
+      earnings_call: '#F9A8D4',  // pastel pink (pink-300)
+      broker_report: '#A5F3FC',  // pastel cyan (cyan-200)
+      company_filing: '#FDE68A', // pastel amber/yellow (amber-200)
+      internal_research: '#93C5FD', // pastel blue (blue-300)
+      ai_content: '#C4B5FD'      // pastel purple/violet-300
     };
     return colors[type] || '#6B7280';
   };
@@ -114,7 +122,37 @@ export default function CompanyTimelinePage() {
     return levels[type] || 3;
   };
 
-  const fullChartData: ChartDataPoint[] = useMemo(() => 
+  const getEventIcon = (type: string) => {
+    const icons = {
+      trade: DollarSign,
+      earnings_call: Mic,
+      broker_report: BarChart2,
+      company_filing: FileText,
+      internal_research: FlaskConical,
+      ai_content: Sparkles
+    };
+    return icons[type as keyof typeof icons] || FileText;
+  };
+
+  const findPriceAtDate = (dateMs: number, chartData: ChartDataPoint[]): number | null => {
+    if (chartData.length === 0) return null;
+    
+    // Find the closest data point to this date
+    let closest = chartData[0];
+    let minDiff = Math.abs(chartData[0].dateNum - dateMs);
+    
+    for (const point of chartData) {
+      const diff = Math.abs(point.dateNum - dateMs);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = point;
+      }
+    }
+    
+    return closest.value;
+  };
+
+  const fullChartData: ChartDataPoint[] = useMemo(() =>
     metricData.map(d => ({
       date: d.date,
       dateNum: d.date.getTime(),
@@ -158,13 +196,6 @@ export default function CompanyTimelinePage() {
     [visibleDocs]
   );
 
-  const handleBrushChange = (range: { startIndex?: number; endIndex?: number }) => {
-    if (range.startIndex !== undefined && range.endIndex !== undefined && fullChartData.length > 0) {
-      const newMin = fullChartData[range.startIndex].dateNum;
-      const newMax = fullChartData[range.endIndex].dateNum;
-      setXDomain([newMin, newMax]);
-    }
-  };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (!xDomain || fullChartData.length === 0) return;
@@ -277,21 +308,71 @@ export default function CompanyTimelinePage() {
         </div>
 
         <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <select
-              value={selectedMetric}
-              onChange={(e) => setSelectedMetric(e.target.value)}
-              className="border rounded-md px-3 py-2 bg-background text-sm font-medium"
-            >
-              {metricTypes.map(type => (
-                <option key={type.id} value={type.id}>{type.name}</option>
-              ))}
-            </select>
-            {xDomain && (
-              <span className="text-sm text-muted-foreground">
-                {new Date(xDomain[0]).toLocaleDateString()} - {new Date(xDomain[1]).toLocaleDateString()}
-              </span>
-            )}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <select
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value)}
+                className="border rounded-md px-3 py-2 bg-background text-sm font-medium"
+              >
+                {metricTypes.map(type => (
+                  <option key={type.id} value={type.id}>{type.name}</option>
+                ))}
+              </select>
+              {xDomain && (
+                <span className="text-sm text-muted-foreground">
+                  {new Date(xDomain[0]).toLocaleDateString()} - {new Date(xDomain[1]).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (fullChartData.length === 0) return;
+                  const maxDate = Math.max(...fullChartData.map(d => d.dateNum));
+                  const oneYearAgo = maxDate - (365 * 24 * 60 * 60 * 1000);
+                  const minDate = Math.min(...fullChartData.map(d => d.dateNum));
+                  setXDomain([Math.max(oneYearAgo, minDate), maxDate]);
+                }}
+              >
+                1Y
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (fullChartData.length === 0) return;
+                  const maxDate = Math.max(...fullChartData.map(d => d.dateNum));
+                  const fiveYearsAgo = maxDate - (5 * 365 * 24 * 60 * 60 * 1000);
+                  const minDate = Math.min(...fullChartData.map(d => d.dateNum));
+                  setXDomain([Math.max(fiveYearsAgo, minDate), maxDate]);
+                }}
+              >
+                5Y
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (fullChartData.length === 0) return;
+                  const priceMin = Math.min(...fullChartData.map(d => d.dateNum));
+                  const priceMax = Math.max(...fullChartData.map(d => d.dateNum));
+                  
+                  const docTimes = documents.map(d => d.date.getTime());
+                  const docMin = docTimes.length ? Math.min(...docTimes) : priceMin;
+                  const docMax = docTimes.length ? Math.max(...docTimes) : priceMax;
+                  
+                  const overallMin = Math.min(priceMin, docMin);
+                  const overallMax = Math.max(priceMax, docMax);
+                  
+                  setXDomain([overallMin, overallMax]);
+                }}
+              >
+                ALL
+              </Button>
+            </div>
           </div>
 
           <div 
@@ -338,48 +419,78 @@ export default function CompanyTimelinePage() {
                   strokeWidth={2}
                   dot={false}
                 />
-                {visibleDocs.map(doc => (
-                  <ReferenceLine 
-                    key={doc.id}
-                    x={doc.date.getTime()}
-                    stroke={getEventColor(doc.type)}
-                    strokeDasharray="3 3"
-                    strokeOpacity={0.5}
-                  />
-                ))}
-                <Brush 
-                  data={fullChartData}
-                  dataKey="dateNum"
-                  height={30}
-                  stroke="#6366F1"
-                  fill="#F3F4F6"
-                  onChange={handleBrushChange}
-                  tickFormatter={(ts) => new Date(ts).toLocaleDateString()}
-                />
+                {visibleDocs
+                  .filter(doc => doc.type === 'trade' || doc.type === 'broker_report')
+                  .map(doc => {
+                    const x = doc.date.getTime();
+                    const chartData = visibleData.length > 0 ? visibleData : fullChartData;
+                    
+                    // Only draw connector lines for documents within the price data range
+                    if (chartData.length === 0) return null;
+                    const priceDataMin = chartData[0].dateNum;
+                    const priceDataMax = chartData[chartData.length - 1].dateNum;
+                    
+                    // Skip if document is outside the price data range
+                    if (x < priceDataMin || x > priceDataMax) return null;
+                    
+                    const priceAtDate = findPriceAtDate(x, chartData);
+                    if (priceAtDate === null) return null;
+                    
+                    return (
+                      <ReferenceLine 
+                        key={doc.id}
+                        segment={[
+                          { x, y: 0 },
+                          { x, y: priceAtDate }
+                        ]}
+                        stroke={getEventColor(doc.type)}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.25}
+                      />
+                    );
+                  })
+                  .filter(line => line !== null)}
               </ComposedChart>
             </ResponsiveContainer>
 
-            <div className="mt-2">
-              <ResponsiveContainer width="100%" height={80}>
-                <ComposedChart data={markerPoints} syncId="timeline" margin={{ top: 10, bottom: 10 }}>
+            <div className="mt-4 border-t pt-4">
+              <div className="text-sm font-medium text-muted-foreground mb-2">Event Timeline</div>
+              <ResponsiveContainer width="100%" height={100}>
+                <ComposedChart data={markerPoints} syncId="timeline" margin={{ top: 5, bottom: 5, left: 50, right: 50 }}>
                   <XAxis 
                     type="number"
                     dataKey="x"
                     domain={xDomain || ['auto', 'auto']}
                     hide
                   />
-                  <YAxis type="number" domain={[0, 7]} hide />
+                  <YAxis type="number" dataKey="y" domain={[0.5, 6.5]} hide />
                   <Scatter 
                     data={markerPoints}
-                    shape={(props: any) => {
-                      const { cx, cy, payload } = props;
+                    dataKey="y"
+                    isAnimationActive={false}
+                    shape={(props: unknown) => {
+                      const { cx, cy, payload } = props as { cx?: number; cy?: number; payload?: { type: string; id: string; title: string } };
+                      if (!cx || !cy || !payload) return <></>;
                       const color = getEventColor(payload.type);
+                      const Icon = getEventIcon(payload.type);
+                      const isConnectorType = payload.type === 'trade' || payload.type === 'broker_report';
                       return (
                         <g>
+                          {isConnectorType && (
+                            <line
+                              x1={cx}
+                              x2={cx}
+                              y1={0}
+                              y2={cy}
+                              stroke={color}
+                              strokeDasharray="3 3"
+                              strokeOpacity={0.25}
+                            />
+                          )}
                           <circle 
                             cx={cx} 
                             cy={cy} 
-                            r={6} 
+                            r={10} 
                             fill={color}
                             stroke="#fff"
                             strokeWidth={2}
@@ -391,6 +502,9 @@ export default function CompanyTimelinePage() {
                               }
                             }}
                           />
+                          <g transform={`translate(${cx - 6}, ${cy - 6})`}>
+                            <Icon width={12} height={12} color="#ffffff" strokeWidth={2.5} />
+                          </g>
                           <title>{payload.title}</title>
                         </g>
                       );
@@ -408,6 +522,7 @@ export default function CompanyTimelinePage() {
             {['trade', 'earnings_call', 'broker_report', 'company_filing', 'internal_research', 'ai_content'].map(type => {
               const isEnabled = enabledEventTypes.has(type);
               const color = getEventColor(type);
+              const Icon = getEventIcon(type);
               return (
                 <button
                   key={type}
@@ -420,7 +535,7 @@ export default function CompanyTimelinePage() {
                     }
                     setEnabledEventTypes(newTypes);
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 flex items-center gap-2 ${
                     isEnabled
                       ? 'shadow-sm'
                       : 'bg-background hover:bg-accent border-border'
@@ -437,6 +552,7 @@ export default function CompanyTimelinePage() {
                   role="checkbox"
                   aria-checked={isEnabled}
                 >
+                  <Icon className="h-4 w-4" />
                   {type.replace('_', ' ')}
                 </button>
               );
