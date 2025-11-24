@@ -134,7 +134,25 @@ export default function CompanyTimelinePage() {
     return icons[type as keyof typeof icons] || FileText;
   };
 
-  const fullChartData: ChartDataPoint[] = useMemo(() => 
+  const findPriceAtDate = (dateMs: number, chartData: ChartDataPoint[]): number | null => {
+    if (chartData.length === 0) return null;
+    
+    // Find the closest data point to this date
+    let closest = chartData[0];
+    let minDiff = Math.abs(chartData[0].dateNum - dateMs);
+    
+    for (const point of chartData) {
+      const diff = Math.abs(point.dateNum - dateMs);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = point;
+      }
+    }
+    
+    return closest.value;
+  };
+
+  const fullChartData: ChartDataPoint[] = useMemo(() =>
     metricData.map(d => ({
       date: d.date,
       dateNum: d.date.getTime(),
@@ -403,15 +421,27 @@ export default function CompanyTimelinePage() {
                 />
                 {visibleDocs
                   .filter(doc => doc.type === 'trade' || doc.type === 'broker_report')
-                  .map(doc => (
-                    <ReferenceLine 
-                      key={doc.id}
-                      x={doc.date.getTime()}
-                      stroke={getEventColor(doc.type)}
-                      strokeDasharray="3 3"
-                      strokeOpacity={0.4}
-                    />
-                  ))}
+                  .map(doc => {
+                    const x = doc.date.getTime();
+                    const priceAtDate = findPriceAtDate(x, visibleData.length > 0 ? visibleData : fullChartData);
+                    
+                    // Skip if we can't find a price for this date
+                    if (priceAtDate === null) return null;
+                    
+                    return (
+                      <ReferenceLine 
+                        key={doc.id}
+                        segment={[
+                          { x, y: 0 },
+                          { x, y: priceAtDate }
+                        ]}
+                        stroke={getEventColor(doc.type)}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.25}
+                      />
+                    );
+                  })
+                  .filter(line => line !== null)}
               </ComposedChart>
             </ResponsiveContainer>
 
