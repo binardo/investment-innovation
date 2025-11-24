@@ -150,11 +150,26 @@ export const mockMetricData: Record<string, MetricDataPoint[]> = {
 
 function generateMockPriceData(): MetricDataPoint[] {
   const data: MetricDataPoint[] = [];
-  const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - 1);
+  
+  // Align start date to the earliest document date to ensure price data covers all documents
+  const docs = mockDocuments['0263494'] || [];
+  let startDate: Date;
+  
+  if (docs.length > 0) {
+    const earliestDocMs = Math.min(...docs.map(d => d.date.getTime()));
+    startDate = new Date(earliestDocMs);
+    // Add a week of padding before the first document
+    startDate.setDate(startDate.getDate() - 7);
+  } else {
+    // Fallback to previous behavior if no documents
+    startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 1);
+  }
   
   let price = 150;
-  for (let i = 0; i < 365; i++) {
+  // Generate enough days to cover from start to well beyond the latest document
+  const days = 550; // ~18 months to ensure we cover all documents plus future data
+  for (let i = 0; i < days; i++) {
     const date = new Date(startDate);
     date.setDate(date.getDate() + i);
     
