@@ -5,8 +5,8 @@ import { fetchCompanyDetails, fetchPriceHistory, fetchDocuments, fetchMetricType
 import { useNavigation } from '../contexts/NavigationContext';
 import { Button } from '../components/ui/button';
 import { Checkbox } from '../components/ui/checkbox';
-import { ArrowLeft, Pin, PinOff } from 'lucide-react';
-import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Brush, ReferenceLine, Scatter } from 'recharts';
+import { ArrowLeft, Pin, PinOff, DollarSign, FileText, Mic, BarChart2, FlaskConical, Sparkles } from 'lucide-react';
+import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Scatter } from 'recharts';
 import { toast } from 'sonner';
 
 interface ChartDataPoint {
@@ -100,12 +100,12 @@ export default function CompanyTimelinePage() {
 
   const getEventColor = (type: string) => {
     const colors: Record<string, string> = {
-      trade: '#F97316',
-      earnings_call: '#EC4899',
-      broker_report: '#06B6D4',
-      company_filing: '#EAB308',
-      internal_research: '#3B82F6',
-      ai_content: '#A855F7'
+      trade: '#FDBA74',          // pastel orange (orange-300)
+      earnings_call: '#F9A8D4',  // pastel pink (pink-300)
+      broker_report: '#A5F3FC',  // pastel cyan (cyan-200)
+      company_filing: '#FDE68A', // pastel amber/yellow (amber-200)
+      internal_research: '#93C5FD', // pastel blue (blue-300)
+      ai_content: '#C4B5FD'      // pastel purple/violet-300
     };
     return colors[type] || '#6B7280';
   };
@@ -120,6 +120,18 @@ export default function CompanyTimelinePage() {
       ai_content: 6
     };
     return levels[type] || 3;
+  };
+
+  const getEventIcon = (type: string) => {
+    const icons = {
+      trade: DollarSign,
+      earnings_call: Mic,
+      broker_report: BarChart2,
+      company_filing: FileText,
+      internal_research: FlaskConical,
+      ai_content: Sparkles
+    };
+    return icons[type as keyof typeof icons] || FileText;
   };
 
   const fullChartData: ChartDataPoint[] = useMemo(() => 
@@ -166,13 +178,6 @@ export default function CompanyTimelinePage() {
     [visibleDocs]
   );
 
-  const handleBrushChange = (range: { startIndex?: number; endIndex?: number }) => {
-    if (range.startIndex !== undefined && range.endIndex !== undefined && fullChartData.length > 0) {
-      const newMin = fullChartData[range.startIndex].dateNum;
-      const newMax = fullChartData[range.endIndex].dateNum;
-      setXDomain([newMin, newMax]);
-    }
-  };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (!xDomain || fullChartData.length === 0) return;
@@ -396,24 +401,17 @@ export default function CompanyTimelinePage() {
                   strokeWidth={2}
                   dot={false}
                 />
-                {visibleDocs.map(doc => (
-                  <ReferenceLine 
-                    key={doc.id}
-                    x={doc.date.getTime()}
-                    stroke={getEventColor(doc.type)}
-                    strokeDasharray="3 3"
-                    strokeOpacity={0.5}
-                  />
-                ))}
-                <Brush 
-                  data={fullChartData}
-                  dataKey="dateNum"
-                  height={30}
-                  stroke="#6366F1"
-                  fill="#F3F4F6"
-                  onChange={handleBrushChange}
-                  tickFormatter={(ts) => new Date(ts).toLocaleDateString()}
-                />
+                {visibleDocs
+                  .filter(doc => doc.type === 'trade' || doc.type === 'broker_report')
+                  .map(doc => (
+                    <ReferenceLine 
+                      key={doc.id}
+                      x={doc.date.getTime()}
+                      stroke={getEventColor(doc.type)}
+                      strokeDasharray="3 3"
+                      strokeOpacity={0.4}
+                    />
+                  ))}
               </ComposedChart>
             </ResponsiveContainer>
 
@@ -435,12 +433,13 @@ export default function CompanyTimelinePage() {
                       const { cx, cy, payload } = props as { cx?: number; cy?: number; payload?: { type: string; id: string; title: string } };
                       if (!cx || !cy || !payload) return <></>;
                       const color = getEventColor(payload.type);
+                      const Icon = getEventIcon(payload.type);
                       return (
                         <g>
                           <circle 
                             cx={cx} 
                             cy={cy} 
-                            r={8} 
+                            r={10} 
                             fill={color}
                             stroke="#fff"
                             strokeWidth={2}
@@ -452,6 +451,9 @@ export default function CompanyTimelinePage() {
                               }
                             }}
                           />
+                          <g transform={`translate(${cx - 6}, ${cy - 6})`}>
+                            <Icon width={12} height={12} color="#ffffff" strokeWidth={2.5} />
+                          </g>
                           <title>{payload.title}</title>
                         </g>
                       );
@@ -469,6 +471,7 @@ export default function CompanyTimelinePage() {
             {['trade', 'earnings_call', 'broker_report', 'company_filing', 'internal_research', 'ai_content'].map(type => {
               const isEnabled = enabledEventTypes.has(type);
               const color = getEventColor(type);
+              const Icon = getEventIcon(type);
               return (
                 <button
                   key={type}
@@ -481,7 +484,7 @@ export default function CompanyTimelinePage() {
                     }
                     setEnabledEventTypes(newTypes);
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 flex items-center gap-2 ${
                     isEnabled
                       ? 'shadow-sm'
                       : 'bg-background hover:bg-accent border-border'
@@ -498,6 +501,7 @@ export default function CompanyTimelinePage() {
                   role="checkbox"
                   aria-checked={isEnabled}
                 >
+                  <Icon className="h-4 w-4" />
                   {type.replace('_', ' ')}
                 </button>
               );
