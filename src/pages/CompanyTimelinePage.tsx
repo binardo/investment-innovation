@@ -467,13 +467,26 @@ export default function CompanyTimelinePage() {
                   <Scatter 
                     data={markerPoints}
                     dataKey="y"
+                    isAnimationActive={false}
                     shape={(props: unknown) => {
                       const { cx, cy, payload } = props as { cx?: number; cy?: number; payload?: { type: string; id: string; title: string } };
                       if (!cx || !cy || !payload) return <></>;
                       const color = getEventColor(payload.type);
                       const Icon = getEventIcon(payload.type);
+                      const isConnectorType = payload.type === 'trade' || payload.type === 'broker_report';
                       return (
                         <g>
+                          {isConnectorType && (
+                            <line
+                              x1={cx}
+                              x2={cx}
+                              y1={0}
+                              y2={cy}
+                              stroke={color}
+                              strokeDasharray="3 3"
+                              strokeOpacity={0.25}
+                            />
+                          )}
                           <circle 
                             cx={cx} 
                             cy={cy} 
