@@ -60,9 +60,17 @@ export default function CompanyTimelinePage() {
       setMetricTypes(types);
       
       if (priceData.length > 0) {
-        const minDate = Math.min(...priceData.map(d => d.date.getTime()));
-        const maxDate = Math.max(...priceData.map(d => d.date.getTime()));
-        setXDomain([minDate, maxDate]);
+        const priceMin = Math.min(...priceData.map(d => d.date.getTime()));
+        const priceMax = Math.max(...priceData.map(d => d.date.getTime()));
+        
+        const docTimes = docs.map(d => d.date.getTime());
+        const docMin = docTimes.length ? Math.min(...docTimes) : priceMin;
+        const docMax = docTimes.length ? Math.max(...docTimes) : priceMax;
+        
+        const overallMin = Math.min(priceMin, docMin);
+        const overallMax = Math.max(priceMax, docMax);
+        
+        setXDomain([overallMin, overallMax]);
       }
     } catch (err) {
       console.error('Failed to load company data', err);
@@ -326,9 +334,17 @@ export default function CompanyTimelinePage() {
                 size="sm"
                 onClick={() => {
                   if (fullChartData.length === 0) return;
-                  const minDate = Math.min(...fullChartData.map(d => d.dateNum));
-                  const maxDate = Math.max(...fullChartData.map(d => d.dateNum));
-                  setXDomain([minDate, maxDate]);
+                  const priceMin = Math.min(...fullChartData.map(d => d.dateNum));
+                  const priceMax = Math.max(...fullChartData.map(d => d.dateNum));
+                  
+                  const docTimes = documents.map(d => d.date.getTime());
+                  const docMin = docTimes.length ? Math.min(...docTimes) : priceMin;
+                  const docMax = docTimes.length ? Math.max(...docTimes) : priceMax;
+                  
+                  const overallMin = Math.min(priceMin, docMin);
+                  const overallMax = Math.max(priceMax, docMax);
+                  
+                  setXDomain([overallMin, overallMax]);
                 }}
               >
                 ALL
@@ -411,9 +427,10 @@ export default function CompanyTimelinePage() {
                     domain={xDomain || ['auto', 'auto']}
                     hide
                   />
-                  <YAxis type="number" domain={[0.5, 6.5]} hide />
+                  <YAxis type="number" dataKey="y" domain={[0.5, 6.5]} hide />
                   <Scatter 
                     data={markerPoints}
+                    dataKey="y"
                     shape={(props: unknown) => {
                       const { cx, cy, payload } = props as { cx?: number; cy?: number; payload?: { type: string; id: string; title: string } };
                       if (!cx || !cy || !payload) return <></>;
