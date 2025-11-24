@@ -143,51 +143,6 @@ export const mockCompanyDetails: Record<string, CompanyDetails> = {
     description: 'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.'
   }
 };
-
-export const mockMetricData: Record<string, MetricDataPoint[]> = {
-  '0263494': generateMockPriceData()
-};
-
-function generateMockPriceData(): MetricDataPoint[] {
-  const data: MetricDataPoint[] = [];
-  
-  // Align start date to the earliest document date to ensure price data covers all documents
-  const docs = mockDocuments['0263494'] || [];
-  let startDate: Date;
-  
-  if (docs.length > 0) {
-    const earliestDocMs = Math.min(...docs.map(d => d.date.getTime()));
-    startDate = new Date(earliestDocMs);
-    // Add a week of padding before the first document
-    startDate.setDate(startDate.getDate() - 7);
-  } else {
-    // Fallback to previous behavior if no documents
-    startDate = new Date();
-    startDate.setFullYear(startDate.getFullYear() - 1);
-  }
-  
-  let price = 150;
-  // Generate enough days to cover from start to well beyond the latest document
-  const days = 550; // ~18 months to ensure we cover all documents plus future data
-  for (let i = 0; i < days; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    
-    price += (Math.random() - 0.5) * 5;
-    price = Math.max(100, Math.min(200, price));
-    
-    data.push({
-      date,
-      price,
-      mcap: price * 16000000000,
-      pe: 25 + (Math.random() - 0.5) * 5,
-      revenue: 380000000000 + (Math.random() - 0.5) * 20000000000
-    });
-  }
-  
-  return data;
-}
-
 export const mockDocuments: Record<string, EventDocument[]> = {
   '0263494': [
     {
@@ -462,6 +417,50 @@ export const mockDocuments: Record<string, EventDocument[]> = {
     }
   ]
 };
+
+export const mockMetricData: Record<string, MetricDataPoint[]> = {
+  '0263494': generateMockPriceData()
+};
+
+function generateMockPriceData(): MetricDataPoint[] {
+  const data: MetricDataPoint[] = [];
+  
+  // Align start date to the earliest document date to ensure price data covers all documents
+  const docs = mockDocuments['0263494'] || [];
+  let startDate: Date;
+  
+  if (docs.length > 0) {
+    const earliestDocMs = Math.min(...docs.map(d => d.date.getTime()));
+    startDate = new Date(earliestDocMs);
+    // Add a week of padding before the first document
+    startDate.setDate(startDate.getDate() - 7);
+  } else {
+    // Fallback to previous behavior if no documents
+    startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 1);
+  }
+  
+  let price = 150;
+  // Generate enough days to cover from start to well beyond the latest document
+  const days = 550; // ~18 months to ensure we cover all documents plus future data
+  for (let i = 0; i < days; i++) {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + i);
+    
+    price += (Math.random() - 0.5) * 5;
+    price = Math.max(100, Math.min(200, price));
+    
+    data.push({
+      date,
+      price,
+      mcap: price * 16000000000,
+      pe: 25 + (Math.random() - 0.5) * 5,
+      revenue: 380000000000 + (Math.random() - 0.5) * 20000000000
+    });
+  }
+  
+  return data;
+}
 
 export const mockMetricTypes: MetricTypeDefinition[] = [
   { id: 'price', name: 'Price', description: 'Stock price', unit: '$' },
