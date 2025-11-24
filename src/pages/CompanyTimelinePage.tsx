@@ -423,9 +423,17 @@ export default function CompanyTimelinePage() {
                   .filter(doc => doc.type === 'trade' || doc.type === 'broker_report')
                   .map(doc => {
                     const x = doc.date.getTime();
-                    const priceAtDate = findPriceAtDate(x, visibleData.length > 0 ? visibleData : fullChartData);
+                    const chartData = visibleData.length > 0 ? visibleData : fullChartData;
                     
-                    // Skip if we can't find a price for this date
+                    // Only draw connector lines for documents within the price data range
+                    if (chartData.length === 0) return null;
+                    const priceDataMin = chartData[0].dateNum;
+                    const priceDataMax = chartData[chartData.length - 1].dateNum;
+                    
+                    // Skip if document is outside the price data range
+                    if (x < priceDataMin || x > priceDataMax) return null;
+                    
+                    const priceAtDate = findPriceAtDate(x, chartData);
                     if (priceAtDate === null) return null;
                     
                     return (
